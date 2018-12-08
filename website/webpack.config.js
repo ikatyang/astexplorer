@@ -1,14 +1,15 @@
-const ExtractTextPlugin = require('extract-text-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const InlineManifestWebpackPlugin = require('inline-manifest-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const ProgressBarPlugin = require('progress-bar-webpack-plugin');
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 const WebpackChunkHash = require('webpack-chunk-hash');
 const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 
 const DEV = process.env.NODE_ENV !== 'production';
-const CACHE_BREAKER = 16;
+const CACHE_BREAKER = Number(fs.readFileSync(path.join(__dirname, 'CACHE_BREAKER')));
 
 const packages = fs.readdirSync(path.join(__dirname, 'packages'));
 const vendorRegex = new RegExp(`/node_modules/(?!${packages.join('|')}/)`);
@@ -16,8 +17,6 @@ const vendorRegex = new RegExp(`/node_modules/(?!${packages.join('|')}/)`);
 const plugins = [
   new WebpackChunkHash(),
   new webpack.DefinePlugin({
-    'process.env.NODE_ENV':
-      JSON.stringify(process.env.NODE_ENV || 'development'),
     'process.env.API_HOST': JSON.stringify(process.env.API_HOST || ''),
   }),
   new webpack.IgnorePlugin(/\.md$/),
@@ -29,11 +28,15 @@ const plugins = [
   // Prettier //
 
   // We don't use these parsers with prettier, so we don't need to include them
+  new webpack.IgnorePlugin(/parser-flow/, /\/prettier/),
+  new webpack.IgnorePlugin(/parser-glimmer/, /\/prettier/),
   new webpack.IgnorePlugin(/parser-graphql/, /\/prettier/),
-  new webpack.IgnorePlugin(/parser-wat/, /\/prettier/),
-  new webpack.IgnorePlugin(/parser-json/, /\/prettier/),
+  new webpack.IgnorePlugin(/parser-markdown/, /\/prettier/),
   new webpack.IgnorePlugin(/parser-parse5/, /\/prettier/),
   new webpack.IgnorePlugin(/parser-postcss/, /\/prettier/),
+  new webpack.IgnorePlugin(/parser-typescript/, /\/prettier/),
+  new webpack.IgnorePlugin(/parser-vue/, /\/prettier/),
+  new webpack.IgnorePlugin(/parser-yaml/, /\/prettier/),
 
   // eslint //
 
@@ -73,29 +76,9 @@ const plugins = [
   // https://github.com/webpack/webpack/issues/198
   new webpack.ContextReplacementPlugin(/eslint/, /NEVER_MATCH^/),
 
-  new ExtractTextPlugin({
-    filename: DEV ? '[name].css' : `[name]-[chunkhash]-${CACHE_BREAKER}.css`,
+  new MiniCssExtractPlugin({
+    filename: DEV ? '[name].css' : `[name]-[contenthash]-${CACHE_BREAKER}.css`,
     allChunks: true,
-  }),
-
-  // Put parser meta data into its own chunk
-  new webpack.optimize.CommonsChunkPlugin({
-    name: 'parsermeta',
-    minChunks: module => module.resource && /\/package\.json$/.test(module.resource),
-    chunks: ['app'],
-  }),
-
-  // Put all vendor code into its own chunk
-  new webpack.optimize.CommonsChunkPlugin({
-    name: 'vendor',
-    minChunks: module => module.resource && vendorRegex.test(module.resource),
-    chunks: ['app'],
-  }),
-
-  // Webpack runtime + manifest
-  new webpack.optimize.CommonsChunkPlugin({
-    name: 'manifest',
-    minChunks: Infinity,
   }),
 
   new HtmlWebpackPlugin({
@@ -107,29 +90,45 @@ const plugins = [
   }),
 
   // Inline runtime and manifest into the HTML. It's small and changes after every build.
-  new InlineManifestWebpackPlugin({
-    name: 'webpackManifest',
-  }),
+  new InlineManifestWebpackPlugin(),
   DEV ?
     new webpack.NamedModulesPlugin() :
     new webpack.HashedModuleIdsPlugin(),
   new ProgressBarPlugin(),
-  new webpack.LoaderOptionsPlugin({
-    test: /\.jsx?$/,
-    options: {
-      'uglify-loader': {
-        mangle: {
-          except: ['Plugin', 'Tree', 'JSON'],
-        },
-        compress: {
-          warnings: false,
-        },
-      },
-    },
-  }),
 ];
 
 module.exports = Object.assign({
+  optimization: {
+    runtimeChunk: 'single',
+    splitChunks: {
+      cacheGroups: {
+        parsermeta: {
+          priority: 10,
+          test: /\/package\.json$/,
+          chunks(chunk) {
+            return chunk.name === 'app';
+          },
+          minChunks: 1,
+          minSize: 1,
+        },
+        vendors: {
+          test: vendorRegex,
+          chunks(chunk) {
+            return chunk.name === 'app';
+          },
+        },
+      },
+    },
+    minimizer: [
+      new UglifyJsPlugin({
+        uglifyOptions: {
+          ecma: 8,
+          keep_fnames: true,
+        },
+      }),
+    ],
+  },
+
   module: {
     rules: [
       {
@@ -138,17 +137,23 @@ module.exports = Object.assign({
         loader: 'raw-loader',
       },
       {
-        test: /\.jsx?$/,
+        test: /\.(jsx?|mjs)$/,
+        type: 'javascript/auto',
         include: [
           // To transpile our version of acorn as well as the one that
           // espree uses (somewhere in its dependency tree)
           /\/acorn.es.js$/,
+          /\/acorn.mjs$/,
+          /\/acorn-loose.mjs$/,
           path.join(__dirname, 'node_modules', '@glimmer', 'compiler', 'dist'),
           path.join(__dirname, 'node_modules', '@glimmer', 'syntax', 'dist'),
           path.join(__dirname, 'node_modules', '@glimmer', 'util', 'dist'),
           path.join(__dirname, 'node_modules', '@glimmer', 'wire-format', 'dist'),
           path.join(__dirname, 'node_modules', 'ast-types'),
           path.join(__dirname, 'node_modules', 'babel-eslint'),
+          path.join(__dirname, 'node_modules', 'babel-eslint8'),
+          path.join(__dirname, 'node_modules', 'jsesc'),
+          path.join(__dirname, 'node_modules', 'eslint-visitor-keys'),
           path.join(__dirname, 'node_modules', 'babel7'),
           path.join(__dirname, 'node_modules', 'babel-plugin-macros'),
           path.join(__dirname, 'node_modules', 'json-parse-better-errors'),
@@ -172,7 +177,6 @@ module.exports = Object.assign({
           path.join(__dirname, 'node_modules', 'webidl2'),
           path.join(__dirname, 'node_modules', 'tslint'),
           path.join(__dirname, 'node_modules', 'tslib'),
-          path.join(__dirname, 'node_modules', 'yaml-unist-parser'),
           path.join(__dirname, 'src'),
         ],
         loader: 'babel-loader',
@@ -180,42 +184,31 @@ module.exports = Object.assign({
           babelrc: false,
           presets: [
             [
-              require.resolve('babel-preset-env'),
+              require.resolve('@babel/preset-env'),
               {
                 targets: {
                   browsers: ['defaults'],
                 },
+                modules: 'commonjs',
               },
             ],
-            require.resolve('babel-preset-stage-0'),
-            require.resolve('babel-preset-react'),
+            require.resolve('@babel/preset-react'),
           ],
           plugins: [
-            [
-              require.resolve('babel-plugin-transform-runtime'),
-              // https://github.com/babel/babel/issues/2877 describes an issue
-              // where babel inserts untranspiled import statements into a
-              // module. That module then contains ES6 and CommonJS module code,
-              // leading to issues with webpack. Disabling the polyfill seems
-              // to fix it, and we probably don't need it anyway.
-              // (should also result in smaller bundles)
-              { polyfill: false },
-            ],
+            require.resolve('@babel/plugin-transform-runtime'),
           ],
         },
       },
       {
         test: /\.css$/,
-        loader: ExtractTextPlugin.extract({
-          fallback: 'style-loader',
-          use: [
-            {
-              loader: 'css-loader',
-              options: { importLoaders: 1 },
-            },
-            'postcss-loader',
-          ],
-        }),
+        use: [
+          DEV ? 'style-loader' : MiniCssExtractPlugin.loader,
+          {
+            loader: 'css-loader',
+            options: { importLoaders: 1 },
+          },
+          'postcss-loader',
+        ],
       },
       {
         test: /\.woff(2)?(\?v=[0-9]\.[0-9]\.[0-9])?$/,
@@ -225,30 +218,13 @@ module.exports = Object.assign({
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         loader: 'file-loader',
       },
-      ...(DEV ? [] : [
-        {
-          test: /\.jsx?$/,
-          // TODO: Figure out how to enable minification for php-parser.
-          // See https://github.com/fkling/astexplorer/pull/253 for more info.
-          exclude: /flow_parser\.js|\/php-parser\//,
-          loader: 'uglify-loader',
-          enforce: 'post',
-          options: {
-            mangle: {
-              except: ['Plugin', 'Tree', 'JSON'],
-            },
-            compress: {
-              warnings: false,
-            },
-          },
-        },
-      ]),
     ],
 
     noParse: [
       /traceur\/bin/,
       /typescript\/lib/,
       /acorn\/dist\/acorn\.js/,
+      /acorn\/dist\/acorn\.mjs/,
       /esprima\/dist\/esprima\.js/,
       /esprima-fb\/esprima\.js/,
       // This is necessary because flow is trying to load the 'fs' module, but
@@ -256,7 +232,6 @@ module.exports = Object.assign({
       // I assume the `require(...)` call "succeeds" because 'fs' is shimmed to
       // be empty below.
       /flow-parser\/flow_parser\.js/,
-      /prettier/,
     ],
   },
 
@@ -282,9 +257,9 @@ module.exports = Object.assign({
   },
 },
 
-  DEV ?
-    {
-      devtool: 'eval',
-    } :
-    {}
+DEV ?
+  {
+    devtool: 'eval',
+  } :
+  {}
 );

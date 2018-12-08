@@ -13,12 +13,14 @@ export default {
 
   loadTransformer(callback) {
     require([
+      '../../../transpilers/babel',
       'babel7',
       'recast',
-    ], (babel, recast) => callback({ babel, recast }));
+    ], (transpile, babel, recast) => callback({ transpile: transpile.default, babel, recast }));
   },
 
-  transform({ babel, recast }, transformCode, code) {
+  transform({ transpile, babel, recast }, transformCode, code) {
+    transformCode = transpile(transformCode);
     let transform = compileModule( // eslint-disable-line no-shadow
       transformCode,
       {createMacro, MacroError}
@@ -29,23 +31,29 @@ export default {
         parser: recast.parse,
         plugins: [
           'asyncGenerators',
+          'bigInt',
+          'classPrivateMethods',
           'classPrivateProperties',
           'classProperties',
-          'decorators',
+          ['decorators', {decoratorsBeforeExport: false}],
           'doExpressions',
-          'exportExtensions',
-          'flow',
-          'functionSent',
-          'functionBind',
-          'jsx',
-          'objectRestSpread',
           'dynamicImport',
-          'numericSeparator',
-          'optionalChaining',
+          'exportDefaultFrom',
+          'exportNamespaceFrom',
+          'flow',
+          'flowComments',
+          'functionBind',
+          'functionSent',
           'importMeta',
-          'bigInt',
+          'jsx',
+          'logicalAssignment',
+          'nullishCoalescingOperator',
+          'numericSeparator',
+          'objectRestSpread',
           'optionalCatchBinding',
-          'pipelineOperator',
+          'optionalChaining',
+          ['pipelineOperator', {proposal: 'minimal'}],
+          'throwExpressions',
         ],
       },
       generatorOpts: {
