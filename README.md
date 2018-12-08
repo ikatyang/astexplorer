@@ -51,8 +51,8 @@ The AST explorer provides following code parsers:
   - [sqlite-parser][]
 - [WebIDL][]
 - YAML
-  - [YAML][]
-  - [YAML Unist Parser][]
+  - [yaml-ast-parser][]
+  - [yaml-unist-parser][]
 
 ### Experimental / custom syntax
 
@@ -136,10 +136,10 @@ node.
 [icu]: https://github.com/yahoo/intl-messageformat-parser
 [json]: https://github.com/vtrushin/json-to-ast
 [sqlite-parser]: https://github.com/codeschool/sqlite-parser
-[yaml]: https://github.com/mulesoft-labs/yaml-ast-parser
+[yaml-ast-parser]: https://github.com/mulesoft-labs/yaml-ast-parser
 [esformatter]: https://github.com/millermedeiros/esformatter-parser#readme
 [Scalameta]: http://scalameta.org/
-[YAML Unist Parser]: https://github.com/ikatyang/yaml-unist-parser
+[yaml-unist-parser]: https://github.com/ikatyang/yaml-unist-parser
 
 ### Contributions
 

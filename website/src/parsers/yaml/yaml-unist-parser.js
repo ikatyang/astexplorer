@@ -9,24 +9,20 @@ export default {
   id: ID,
   displayName: ID,
   version: pkg.version,
-  homepage: pkg.homepage || 'https://www.npmjs.com/package/yaml-unist-parser',
-
-  _ignoredProperties: new Set(['type']),
+  homepage: pkg.homepage,
   locationProps: new Set(['position']),
 
+  loadParser(callback) {
+    require(['yaml-unist-parser'], callback);
+  },
+
   nodeToRange(node) {
-    if (node.position && node.type !== 'null')
-      return [node.position.start.offset, node.position.end.offset]
+    if (node.position)
+      return [node.position.start.offset, node.position.end.offset];
   },
 
   getNodeName(node) {
     return node.type;
-  },
-
-  loadParser(callback) {
-    require(['yaml-unist-parser'], function (yamlAstParser) {
-      callback(yamlAstParser);
-    });
   },
 
   parse({ parse }, code) {
