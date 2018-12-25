@@ -63,6 +63,15 @@ const plugins = [
     }
   ),
 
+  new webpack.NormalModuleReplacementPlugin(
+    /@angular\/compiler\/src\//,
+    module => {
+      if (/angular-estree-parser/.test(module.context)) {
+        module.request = module.request.replace(/\/src\//, '/esm2015/src/');
+      }
+    }
+  ),
+
   // More shims
 
   // Doesn't look like jest-validate is useful in our case (prettier uses it)
