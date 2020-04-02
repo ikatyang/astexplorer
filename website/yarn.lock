@@ -2,12 +2,10 @@
 # yarn lockfile v1
 
 
-"@angular/compiler@^7.1.2":
-  version "7.1.2"
-  resolved "https://registry.yarnpkg.com/@angular/compiler/-/compiler-7.1.2.tgz#def5a55616ef805963288b9d9402d87411d93e7a"
-  integrity sha512-ua6Wh+c5XzxAeJT6guwAFYnwa1XzJpncppUrceRXIS9VAn9X7ApxRr45DvbVeYwXBb1iNdHWtZFm1koFVQpydA==
-  dependencies:
-    tslib "^1.9.0"
+"@angular/compiler@9.1.0":
+  version "9.1.0"
+  resolved "https://registry.yarnpkg.com/@angular/compiler/-/compiler-9.1.0.tgz#e55b4f2f24df75283002d5e8e85e1acfc46928f6"
+  integrity sha512-QHw/JSeTXHiJQ2Ih0EtU7FGsYcOr+0hwZhqwSW3EEn8TtUgA3DS5lXeiDV66f+3DdvNZFPmgiZIvun3ypxn1HA==
 
 "@babel/code-frame@7.0.0-beta.44":
   version "7.0.0-beta.44"
